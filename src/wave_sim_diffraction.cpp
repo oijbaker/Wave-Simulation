@@ -3,13 +3,24 @@
 #include <cmath>
 #include <vector>
 #include <fstream>
+#include <random>
 
 // parameter set-up
-const int x_dim = 100;
-const int y_dim = 100;
+const int x_dim = 70;
+const int y_dim = 70;
 const double c = 0.1;
 
+// Mersenne twister random number generator
+std::mt19937 rng(std::random_device{}());
+std::uniform_real_distribution<double> unif(0.0, 1.0);
+
 const std::string filename = "wave_output.txt";
+
+// Set up excluded region as a circular central object
+const int object_gap = 10; // radius of the circular object
+const int object_center_x = x_dim / 2; // x-coordinate of the center of the object
+const int object_center_y = y_dim / 2; // y-coordinate of the center of the object
+
 
 // initial state set-up
 void single_drop_init(std::vector<std::vector<double>>& u) {
@@ -18,7 +29,13 @@ void single_drop_init(std::vector<std::vector<double>>& u) {
             u[i][j] = 0.0;
         }
     }
-    u[x_dim / 2][y_dim / 2] = 1.0; // initial drop in the center
+    
+    double drop_x = unif(rng);
+    double drop_y = unif(rng);
+
+    int drop_i = static_cast<int>(drop_x * x_dim);
+    int drop_j = static_cast<int>(drop_y * y_dim);
+    u[drop_i][drop_j] = 1.0; // initial drop in a random position
 }
 
 // update function
@@ -49,6 +66,9 @@ void update_wave(std::vector<std::vector<double>>& u, std::vector<std::vector<do
         for (int j = 0; j < y_dim; ++j) {
             u_next[0][j] = 0.0; // left boundary
             u_next[x_dim - 1][j] = 0.0; // right boundary
+            if (abs(j - object_center_y) > object_gap / 2) {
+                u_next[object_center_x][j] = 0.0; // reflect off the diffraction object
+            }
         }
     }
     u = u_next;
@@ -60,6 +80,7 @@ void run(int steps, bool absorb) {
     single_drop_init(u);
 
     std::cout << "Running simulation with " << (absorb ? "absorbing" : "non-absorbing") << " boundary conditions." << std::endl;
+
     // store all the states in a list
     std::vector<std::vector<std::vector<double>>> states(steps, std::vector<std::vector<double>>(x_dim, std::vector<double>(y_dim, 0.0)));
     for (int t = 0; t < steps; ++t) {
@@ -93,8 +114,8 @@ void run(int steps, bool absorb) {
 
 
 int main() {
-    int steps = 2000; // number of time steps to simulate
-    bool absorb = true; // use absorbing boundary conditions
+    int steps = 1000; // number of time steps to simulate
+    bool absorb = false; // use absorbing boundary conditions
     run(steps, absorb);
     return 0;
 }
